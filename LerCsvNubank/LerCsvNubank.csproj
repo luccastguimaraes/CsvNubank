@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>CsvNubank</Title>
+    <Description>A ideia é voce enviar o caminho da pasta onde fica todos seus csv da nubank para ler um por um e criar um novo arquivo csv com todos esses dados em um so arquivo para melhor visualização.
+voce precisa enviar o caminho completo da pasta onde fica os arquivos csv nubank e o caminho completo+ nome que deseja por em seu novo arquivo por exemplo *\NubankTotal.csv</Description>
+    <Copyright>Luccas Trindade Guimaraes</Copyright>
+    <PackageReadmeFile>README - LerCsvNubank.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\..\Desktop\Arquivos\Csv\README - LerCsvNubank.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="33.0.1" />
+  </ItemGroup>
+
+</Project>
