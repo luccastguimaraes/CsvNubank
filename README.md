@@ -16,11 +16,11 @@ using LerCsvNubank;
 
 class Program
 {
+
     static void Main(string[] args)
     {
         string caminhoDaPastaOrigemCsv = @"C:\Caminho\Para\Os\ArquivosCSV";
         string caminhoArquivoFinalCsv = @"C:\Caminho\Para\Salvar\NubankTotal.csv";
-
         CsvNubank.Start(caminhoDaPastaOrigemCsv, caminhoArquivoFinalCsv);
     }
 }
