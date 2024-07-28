@@ -5,6 +5,15 @@ namespace LerCsvNubank;
 
 public static class CsvNubank
 {
+
+    public static CsvConfiguration config = new CsvConfiguration(CultureInfo.InvariantCulture)
+    {
+        Delimiter = ",",
+        HasHeaderRecord = true,
+        HeaderValidated = null, // Ignora a validação do cabeçalho
+        MissingFieldFound = null // Ignora campos faltantes
+    };
+
     public static void Start(string caminhoDaPastaOrigemCsv, string caminhoArquivoFinalCsv)
     {
         CultureInfo cultura = new CultureInfo("pt-BR");
@@ -12,11 +21,7 @@ public static class CsvNubank
         Thread.CurrentThread.CurrentUICulture = cultura;
         List<Transaction> transactions = new();
         string[] arquivos = Directory.GetFiles(caminhoDaPastaOrigemCsv, "*.csv");
-        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-        {
-            Delimiter = ",",
-            HasHeaderRecord = true
-        };
+
         try
         {
             foreach (var caminho in arquivos)
@@ -50,25 +55,40 @@ public static class CsvNubank
             Console.WriteLine(ex.Message);
             Console.WriteLine(ex);
         }
+        Console.WriteLine("Aperte uma tecla para sair");
         Console.ReadKey();
     }
+
+    public static List<Transaction> LoadCsv(string caminhoArquivoFinalCsv)
+    {
+        List<Transaction> registros = new();
+        try
+        {
+            using var sr = new StreamReader(caminhoArquivoFinalCsv);
+            using var csv = new CsvReader(sr, config);
+            csv.Context.RegisterClassMap<TransactionMap>();
+            registros = csv.GetRecords<Transaction>().ToList();
+        }
+        catch (Exception ex) 
+        {
+            Console.WriteLine(ex.Message);
+            Console.WriteLine(ex);
+        }
+        return registros;
+
+    }
+
 }
 
-public class Transaction
+public record Transaction(DateTime Data, decimal Valor, Categoria Categoria, string? Descricao)
 {
-    public DateTime Data { get; set; }
-    public decimal Valor { get; set; }
-    public Categoria Categoria { get; set; }
-    public string Descricao { get; set; }
-
+    public Transaction() : this(default, default, default, default) { }
     public Transaction(DateTime data, decimal valor, string descricao)
+        : this(data, valor, valor < 0 ? Categoria.Despesa : Categoria.Receita, descricao)
     {
-        Data = data;
-        Valor = valor;
-        Descricao = descricao;
-        if (valor < 0) Categoria = Categoria.Despesa;
-        if (valor > 0) Categoria = Categoria.Receita;
+
     }
+
 }
 
 public enum Categoria
