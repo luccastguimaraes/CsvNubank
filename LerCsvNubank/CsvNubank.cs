@@ -44,8 +44,6 @@ public static class CsvNubank
             csv.WriteHeader<Transaction>();
             csv.NextRecord();
             csv.WriteRecords(transactions);
-
-
         }
         catch (Exception ex)
         {
