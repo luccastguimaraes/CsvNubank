@@ -1,6 +1,7 @@
 ﻿using CsvHelper;
 using System.Globalization;
 using CsvHelper.Configuration;
+using System.Threading.Tasks;
 namespace LerCsvNubank;
 
 public static class CsvNubank
@@ -22,10 +23,18 @@ public static class CsvNubank
         List<Transaction> transactions = new();
         string[] arquivos = Directory.GetFiles(caminhoDaPastaOrigemCsv, "*.csv");
 
-        var tasks = arquivos.Select(arquivo => ProcessCsvFileAsync(arquivo, transactions)).ToList();
+        var tasks = arquivos.Select(arquivo => ProcessCsvFileWithCsvHelperAsync(arquivo, transactions)).ToList();
 
         await Task.WhenAll(tasks);
 
+        transactions = transactions.OrderByDescending(t => t.Data).ToList();
+
+        WriteTransactionsToCsv(caminhoArquivoFinalCsv, transactions);
+    }
+
+
+    private static void WriteTransactionsToCsv(string caminhoArquivoFinalCsv, List<Transaction> transactions)
+    {
         try
         {
             using var fw = new FileStream(caminhoArquivoFinalCsv, FileMode.Create);
@@ -41,10 +50,30 @@ public static class CsvNubank
             Console.WriteLine(ex.Message);
             Console.WriteLine(ex);
         }
-        
     }
 
-    private static async Task ProcessCsvFileAsync(string arquivo, List<Transaction> transactions)
+    private static async Task ProcessCsvFileWithCsvHelperAsync(string arquivo, List<Transaction> transactions)
+    {
+        try
+        {
+            using var sr = new StreamReader(arquivo);
+            using var csv = new CsvReader(sr, config);
+            csv.Context.RegisterClassMap<TransactionMapWithoutCategory>();
+            var records = csv.GetRecordsAsync<Transaction>();
+            
+            await foreach (var record in records)
+            {
+                lock (transactions) transactions.Add(record);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Erro ao processar o arquivo {arquivo}: {e.Message}");
+            Console.WriteLine(e);
+        }
+    }
+
+    private static async Task ProcessCsvFileManuallyAsync(string arquivo, List<Transaction> transactions)
     {
         try
         {
@@ -73,6 +102,7 @@ public static class CsvNubank
 
     public static List<Transaction> LoadCsv(string caminhoArquivoFinalCsv)
     {
+
         List<Transaction> registros = new();
         try
         {
@@ -115,5 +145,21 @@ public sealed class TransactionMap : ClassMap<Transaction>
         Map(m => m.Valor);
         Map(m => m.Categoria);
         Map(m => m.Descricao);
+    }
+}
+
+public sealed class TransactionMapWithoutCategory : ClassMap<Transaction>
+{
+    public TransactionMapWithoutCategory()
+    {
+        Map(m => m.Identificador);
+        Map(m => m.Data).TypeConverterOption.Format("dd/MM/yyyy");
+        Map(m => m.Valor);
+        Map(m => m.Descricao).Index(3);
+        Map(m => m.Categoria).Convert(args =>
+        {
+            var valor = args.Row.GetField<decimal>("Valor");
+            return valor < 0 ? Categoria.Despesa : Categoria.Receita;
+        });
     }
 }
