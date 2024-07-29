@@ -9,6 +9,9 @@
     <Description>A ideia é voce enviar o caminho da pasta onde fica todos seus csv da nubank para ler um por um e criar um novo arquivo csv com todos esses dados em um so arquivo para melhor visualização.
 voce precisa enviar o caminho completo da pasta onde fica os arquivos csv nubank e o caminho completo+ nome que deseja por em seu novo arquivo por exemplo *\NubankTotal.csv</Description>
     <Copyright>Luccas Trindade Guimaraes</Copyright>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.0.1.1</Version>
   </PropertyGroup>
 
 

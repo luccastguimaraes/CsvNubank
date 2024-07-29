@@ -34,11 +34,12 @@ public static class CsvNubank
                     var campos = linha.Split(',');
                     var data = campos[0].Trim();
                     var valor = campos[1].Trim();
+                    var identificador = campos[2].Trim();
                     var info = campos[3].Trim();
                     decimal amount = Decimal.Parse(valor, CultureInfo.InvariantCulture);
                     DateTime date = DateTime.Parse(data);
 
-                    transactions.Add(new Transaction(date, amount, info));
+                    transactions.Add(new Transaction(identificador, date, amount, info));
                 }
             }
 
@@ -55,8 +56,7 @@ public static class CsvNubank
             Console.WriteLine(ex.Message);
             Console.WriteLine(ex);
         }
-        Console.WriteLine("Aperte uma tecla para sair");
-        Console.ReadKey();
+        
     }
 
     public static List<Transaction> LoadCsv(string caminhoArquivoFinalCsv)
@@ -80,11 +80,11 @@ public static class CsvNubank
 
 }
 
-public record Transaction(DateTime Data, decimal Valor, Categoria Categoria, string? Descricao)
+public record Transaction(string? Identificador, DateTime Data, decimal Valor, Categoria Categoria, string? Descricao)
 {
-    public Transaction() : this(default, default, default, default) { }
-    public Transaction(DateTime data, decimal valor, string descricao)
-        : this(data, valor, valor < 0 ? Categoria.Despesa : Categoria.Receita, descricao)
+    public Transaction() : this(default, default, default, default, default) { }
+    public Transaction(string identificador, DateTime data, decimal valor, string descricao)
+        : this(identificador, data, valor, valor < 0 ? Categoria.Despesa : Categoria.Receita, descricao)
     {
 
     }
@@ -101,6 +101,7 @@ public class TransactionMap : ClassMap<Transaction>
 {
     public TransactionMap()
     {
+        Map(m => m.Identificador);
         Map(m => m.Data).TypeConverterOption.Format("dd/MM/yyyy");
         Map(m => m.Valor);
         Map(m => m.Categoria);
