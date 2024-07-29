@@ -11,7 +11,7 @@ voce precisa enviar o caminho completo da pasta onde fica os arquivos csv nubank
     <Copyright>Luccas Trindade Guimaraes</Copyright>
     <AssemblyVersion>1.0.1.0</AssemblyVersion>
     <FileVersion>1.0.1.0</FileVersion>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
   </PropertyGroup>
 
 
