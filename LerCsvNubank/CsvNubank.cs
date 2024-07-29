@@ -97,7 +97,7 @@ public enum Categoria
     Receita
 }
 
-public class TransactionMap : ClassMap<Transaction>
+public sealed class TransactionMap : ClassMap<Transaction>
 {
     public TransactionMap()
     {
