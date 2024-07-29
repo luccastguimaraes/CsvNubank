@@ -27,28 +27,28 @@ public static class CsvNubank
 
         await Task.WhenAll(tasks);
 
-        transactions = transactions.OrderByDescending(t => t.Data).ToList();
+        
 
-        WriteTransactionsToCsv(caminhoArquivoFinalCsv, transactions);
+        await WriteTransactionsToCsvAsync(caminhoArquivoFinalCsv, transactions);
     }
 
 
-    private static void WriteTransactionsToCsv(string caminhoArquivoFinalCsv, List<Transaction> transactions)
+    private static async Task WriteTransactionsToCsvAsync(string caminhoArquivoFinalCsv, List<Transaction> transactions)
     {
         try
         {
+            transactions = transactions.OrderByDescending(t => t.Data).ToList();
             using var fw = new FileStream(caminhoArquivoFinalCsv, FileMode.Create);
             using var sw = new StreamWriter(fw);
             using var csv = new CsvWriter(sw, config);
             csv.Context.RegisterClassMap<TransactionMap>();
             csv.WriteHeader<Transaction>();
             csv.NextRecord();
-            csv.WriteRecords(transactions);
+            await csv.WriteRecordsAsync(transactions);
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
-            Console.WriteLine(ex);
+            throw new Exception($"Erro ao escrever as transações no arquivo CSV: {ex.Message}\n", ex);
         }
     }
 
@@ -68,8 +68,7 @@ public static class CsvNubank
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Erro ao processar o arquivo {arquivo}: {e.Message}");
-            Console.WriteLine(e);
+            throw new Exception($"Erro ao processar o arquivo {arquivo}: {e.Message} \n", e);
         }
     }
 
@@ -95,11 +94,10 @@ public static class CsvNubank
         }
         catch(Exception e)
         {
-            Console.WriteLine($"Erro ao processar o arquivo {arquivo}: {e.Message}");
-            Console.WriteLine(e);
+            throw new Exception($"Erro ao processar o arquivo {arquivo} manualmente", e);
         }
     }
-
+    //Task<List<Transaction>> LoadCsvAsync
     public static List<Transaction> LoadCsv(string caminhoArquivoFinalCsv)
     {
 
@@ -110,11 +108,11 @@ public static class CsvNubank
             using var csv = new CsvReader(sr, config);
             csv.Context.RegisterClassMap<TransactionMap>();
             registros = csv.GetRecords<Transaction>().ToList();
+            //registros = await csv.GetRecordsAsync<Transaction>().ToListAsync();
         }
         catch (Exception ex) 
         {
-            Console.WriteLine(ex.Message);
-            Console.WriteLine(ex);
+            throw new Exception($"Erro ao carregar as transações do arquivo CSV: {ex.Message} \n", ex);
         }
         return registros;
 
