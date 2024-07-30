@@ -2,6 +2,7 @@
 using System.Globalization;
 using CsvHelper.Configuration;
 using System.Threading.Tasks;
+using System.Transactions;
 namespace LerCsvNubank;
 
 public static class CsvNubank
@@ -41,7 +42,7 @@ public static class CsvNubank
             using var fw = new FileStream(caminhoArquivoFinalCsv, FileMode.Create);
             using var sw = new StreamWriter(fw);
             using var csv = new CsvWriter(sw, config);
-            csv.Context.RegisterClassMap<TransactionMap>();
+            csv.Context.RegisterClassMap<TransactionMapWithCategory>();
             csv.WriteHeader<Transaction>();
             csv.NextRecord();
             await csv.WriteRecordsAsync(transactions);
@@ -58,7 +59,9 @@ public static class CsvNubank
         {
             using var sr = new StreamReader(arquivo);
             using var csv = new CsvReader(sr, config);
-            csv.Context.RegisterClassMap<TransactionMapWithoutCategory>();
+            csv.Read();
+            csv.ReadHeader();
+            RegisterAppropriateClassMap(csv.Context, csv.HeaderRecord);
             var records = csv.GetRecordsAsync<Transaction>();
             
             await foreach (var record in records)
@@ -69,6 +72,18 @@ public static class CsvNubank
         catch (Exception e)
         {
             throw new Exception($"Erro ao processar o arquivo {arquivo}: {e.Message} \n", e);
+        }
+    }
+
+    private static void RegisterAppropriateClassMap(CsvContext context, string[]? headers)
+    {
+        if (headers.Contains("Categoria"))
+        {
+            context.RegisterClassMap<TransactionMapWithCategory>();
+        }
+        else
+        {
+            context.RegisterClassMap<TransactionMapWithoutCategory>();
         }
     }
 
@@ -100,22 +115,25 @@ public static class CsvNubank
     //Task<List<Transaction>> LoadCsvAsync
     public static List<Transaction> LoadCsv(string caminhoArquivoFinalCsv)
     {
-
         List<Transaction> registros = new();
         try
         {
-            using var sr = new StreamReader(caminhoArquivoFinalCsv);
-            using var csv = new CsvReader(sr, config);
-            csv.Context.RegisterClassMap<TransactionMap>();
-            registros = csv.GetRecords<Transaction>().ToList();
-            //registros = await csv.GetRecordsAsync<Transaction>().ToListAsync();
+            if (File.Exists(caminhoArquivoFinalCsv))
+            {
+                var task = ProcessCsvFileWithCsvHelperAsync(caminhoArquivoFinalCsv, registros);
+                task.Wait();
+            } else if (!File.Exists(caminhoArquivoFinalCsv))
+            {
+                string[] arquivos = Directory.GetFiles(caminhoArquivoFinalCsv);
+                var tasks = arquivos.Select(arquivo => ProcessCsvFileWithCsvHelperAsync(arquivo, registros)).ToList();
+                Task.WhenAll(tasks).Wait();
+            }
+            return registros;
         }
         catch (Exception ex) 
         {
             throw new Exception($"Erro ao carregar as transações do arquivo CSV: {ex.Message} \n", ex);
         }
-        return registros;
-
     }
 
 }
@@ -134,14 +152,18 @@ public enum Categoria
     Receita
 }
 
-public sealed class TransactionMap : ClassMap<Transaction>
+public sealed class TransactionMapWithCategory : ClassMap<Transaction>
 {
-    public TransactionMap()
+    public TransactionMapWithCategory()
     {
         Map(m => m.Identificador);
         Map(m => m.Data).TypeConverterOption.Format("dd/MM/yyyy");
         Map(m => m.Valor);
-        Map(m => m.Categoria);
+        Map(m => m.Categoria).Convert(args =>
+        {
+            var valor = args.Row.GetField<decimal>("Valor");
+            return valor < 0 ? Categoria.Despesa : Categoria.Receita;
+        });
         Map(m => m.Descricao);
     }
 }
@@ -153,11 +175,11 @@ public sealed class TransactionMapWithoutCategory : ClassMap<Transaction>
         Map(m => m.Identificador);
         Map(m => m.Data).TypeConverterOption.Format("dd/MM/yyyy");
         Map(m => m.Valor);
-        Map(m => m.Descricao).Index(3);
         Map(m => m.Categoria).Convert(args =>
         {
             var valor = args.Row.GetField<decimal>("Valor");
             return valor < 0 ? Categoria.Despesa : Categoria.Receita;
         });
+        Map(m => m.Descricao).Index(3);
     }
 }
