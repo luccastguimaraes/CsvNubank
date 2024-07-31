@@ -1,8 +1,6 @@
 ﻿using CsvHelper;
 using System.Globalization;
 using CsvHelper.Configuration;
-using System.Threading.Tasks;
-using System.Transactions;
 namespace LerCsvNubank;
 
 public static class CsvNubank
@@ -21,14 +19,7 @@ public static class CsvNubank
         CultureInfo cultura = new CultureInfo("pt-BR");
         Thread.CurrentThread.CurrentCulture = cultura;
         Thread.CurrentThread.CurrentUICulture = cultura;
-        List<Transaction> transactions = new();
-        string[] arquivos = Directory.GetFiles(caminhoDaPastaOrigemCsv, "*.csv");
-
-        var tasks = arquivos.Select(arquivo => ProcessCsvFileWithCsvHelperAsync(arquivo, transactions)).ToList();
-
-        await Task.WhenAll(tasks);
-
-        
+        List<Transaction> transactions = await LoadCsvAsync(caminhoDaPastaOrigemCsv);
 
         await WriteTransactionsToCsvAsync(caminhoArquivoFinalCsv, transactions);
     }
@@ -63,7 +54,6 @@ public static class CsvNubank
             csv.ReadHeader();
             RegisterAppropriateClassMap(csv.Context, csv.HeaderRecord);
             var records = csv.GetRecordsAsync<Transaction>();
-            
             await foreach (var record in records)
             {
                 lock (transactions) transactions.Add(record);
@@ -103,8 +93,8 @@ public static class CsvNubank
                 var info = campos[3].Trim();
                 decimal amount = Decimal.Parse(valor, CultureInfo.InvariantCulture);
                 DateTime date = DateTime.Parse(data);
-                var newTransaction = new Transaction(identificador, date, amount, info);
-                lock (transactions) transactions.Add(newTransaction);
+                //var newTransaction = new Transaction(identificador, date, amount, info);
+                //lock (transactions) transactions.Add(newTransaction);
             }
         }
         catch(Exception e)
@@ -112,22 +102,16 @@ public static class CsvNubank
             throw new Exception($"Erro ao processar o arquivo {arquivo} manualmente", e);
         }
     }
-    //Task<List<Transaction>> LoadCsvAsync
-    public static List<Transaction> LoadCsv(string caminhoArquivoFinalCsv)
+   
+
+    
+    public static async Task<List<Transaction>> LoadCsvAsync(string caminhoArquivoFinalCsv)
     {
-        List<Transaction> registros = new();
         try
         {
-            if (File.Exists(caminhoArquivoFinalCsv))
-            {
-                var task = ProcessCsvFileWithCsvHelperAsync(caminhoArquivoFinalCsv, registros);
-                task.Wait();
-            } else if (!File.Exists(caminhoArquivoFinalCsv))
-            {
-                string[] arquivos = Directory.GetFiles(caminhoArquivoFinalCsv);
-                var tasks = arquivos.Select(arquivo => ProcessCsvFileWithCsvHelperAsync(arquivo, registros)).ToList();
-                Task.WhenAll(tasks).Wait();
-            }
+            List<Transaction> registros = new();
+            if (File.Exists(caminhoArquivoFinalCsv)) await ProcessCsvFileWithCsvHelperAsync(caminhoArquivoFinalCsv, registros);
+            else await ProcessCsvFilesInDirectoryAsync(caminhoArquivoFinalCsv, registros);
             return registros;
         }
         catch (Exception ex) 
@@ -136,14 +120,16 @@ public static class CsvNubank
         }
     }
 
-}
-
-public record Transaction(string? Identificador, DateTime Data, decimal Valor, Categoria Categoria, string? Descricao)
-{
-    public Transaction() : this(default, default, default, default, default) { }
-    public Transaction(string identificador, DateTime data, decimal valor, string descricao)
-        : this(identificador, data, valor, valor < 0 ? Categoria.Despesa : Categoria.Receita, descricao)
-    {}
+    private static async Task ProcessCsvFilesInDirectoryAsync(string caminhoArquivoFinalCsv, List<Transaction> registros)
+    {
+        if (Directory.Exists(caminhoArquivoFinalCsv))
+        {
+            string[] arquivos = Directory.GetFiles(caminhoArquivoFinalCsv, "*.csv");  // Filtrando apenas arquivos CSV
+            var tasks = arquivos.Select(arquivo => ProcessCsvFileWithCsvHelperAsync(arquivo, registros)).ToList();
+            await Task.WhenAll(tasks);
+        }
+        else throw new FileNotFoundException($"Caminho especificado não encontrado: {caminhoArquivoFinalCsv}");
+    }
 }
 
 public enum Categoria
@@ -182,4 +168,32 @@ public sealed class TransactionMapWithoutCategory : ClassMap<Transaction>
         });
         Map(m => m.Descricao).Index(3);
     }
+}
+
+
+public readonly record struct Transaction
+{
+    public string Identificador { get; init; }
+    public DateTime Data { get; init; }
+    public decimal Valor { get; init; }
+    public Categoria Categoria { get; init; }
+    public string Descricao { get; init; }
+
+    public Transaction Default() => new()
+    {
+        Identificador = default,
+        Data = default,
+        Valor = default,
+        Categoria = default,
+        Descricao = default
+    };
+
+    public Transaction WithValues(string identificador, DateTime data, decimal valor, string descricao) => new()
+    {
+        Identificador = identificador,
+        Data = data,
+        Valor = valor,
+        Categoria = valor < 0 ? Categoria.Despesa : Categoria.Receita,
+        Descricao = descricao
+    };
 }
