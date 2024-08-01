@@ -1,7 +1,7 @@
 ﻿using CsvHelper;
 using System.Globalization;
 using CsvHelper.Configuration;
-using System.Transactions;
+using LerCsvNubank.Models;
 namespace LerCsvNubank;
 
 public static class CsvNubank
@@ -131,70 +131,4 @@ public static class CsvNubank
         }
         else throw new FileNotFoundException($"Caminho especificado não encontrado: {caminhoArquivoFinalCsv}");
     }
-}
-
-public enum Categoria
-{
-    Despesa,
-    Receita
-}
-
-public sealed class TransactionMapWithCategory : ClassMap<Transaction>
-{
-    public TransactionMapWithCategory()
-    {
-        Map(m => m.Identificador);
-        Map(m => m.Data).TypeConverterOption.Format("dd/MM/yyyy");
-        Map(m => m.Valor);
-        Map(m => m.Categoria).Convert(args =>
-        {
-            var valor = args.Row.GetField<decimal>("Valor");
-            return valor < 0 ? Categoria.Despesa : Categoria.Receita;
-        });
-        Map(m => m.Descricao);
-    }
-}
-
-public sealed class TransactionMapWithoutCategory : ClassMap<Transaction>
-{
-    public TransactionMapWithoutCategory()
-    {
-        Map(m => m.Identificador);
-        Map(m => m.Data).TypeConverterOption.Format("dd/MM/yyyy");
-        Map(m => m.Valor);
-        Map(m => m.Categoria).Convert(args =>
-        {
-            var valor = args.Row.GetField<decimal>("Valor");
-            return valor < 0 ? Categoria.Despesa : Categoria.Receita;
-        });
-        Map(m => m.Descricao).Index(3);
-    }
-}
-
-
-public readonly record struct Transaction
-{
-    public string Identificador { get; init; }
-    public DateTime Data { get; init; }
-    public decimal Valor { get; init; }
-    public Categoria Categoria { get; init; }
-    public string Descricao { get; init; }
-
-    public Transaction Default() => new()
-    {
-        Identificador = default,
-        Data = default,
-        Valor = default,
-        Categoria = default,
-        Descricao = default
-    };
-
-    public Transaction WithValues(string identificador, DateTime data, decimal valor, string descricao) => new()
-    {
-        Identificador = identificador,
-        Data = data,
-        Valor = valor,
-        Categoria = valor < 0 ? Categoria.Despesa : Categoria.Receita,
-        Descricao = descricao
-    };
 }
