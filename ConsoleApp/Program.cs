@@ -29,7 +29,6 @@ public class Program
     private static async Task ShowMenuAndProcessTasks()
     {
         string pastaCaminho = @"C:\Users\DELL\Desktop\Arquivos\Csv\Csv_Bruto\";
-        string arquivoNu = @"C:\Users\DELL\Desktop\Arquivos\Csv\NU4.csv";
         List<Transaction> transactions = await CsvNubank.LoadCsvAsync(pastaCaminho);
         transactions = transactions.OrderBy(t => t.Data).ToList();
         while (true)
@@ -40,7 +39,7 @@ public class Program
             Console.WriteLine("3 - Gerar Relatorio De Todos os Periodos");
             Console.WriteLine("0 - Sair");
             Console.Write("Opção: ");
-            string opcao = Console.ReadLine();
+            string opcao = Console.ReadLine() ?? "-1";
             Console.Clear();
 
             Stopwatch stopwatch = new Stopwatch();
@@ -68,6 +67,8 @@ public class Program
                     return;
                 default:
                     Console.WriteLine("Opção inválida. Tente novamente.");
+                    Console.WriteLine("Aperte qualquer tecla para Continuar");
+                    Console.ReadKey();
                     break;
             }
             Console.Clear();
