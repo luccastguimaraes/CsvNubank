@@ -2,10 +2,13 @@
 using System.Globalization;
 using CsvHelper.Configuration;
 using LerCsvNubank.Models;
+using System;
+using System.Reflection;
 namespace LerCsvNubank;
 
 public static class CsvNubank
 {
+    private static List<Transaction> _registros = new();
 
     public static CsvConfiguration config = new CsvConfiguration(CultureInfo.InvariantCulture)
     {
@@ -15,29 +18,19 @@ public static class CsvNubank
         MissingFieldFound = null // Ignora campos faltantes
     };
 
-    public static async Task StartAsync(string caminhoDaPastaOrigemCsv, string caminhoArquivoFinalCsv)
-    {
-        CultureInfo cultura = new CultureInfo("pt-BR");
-        Thread.CurrentThread.CurrentCulture = cultura;
-        Thread.CurrentThread.CurrentUICulture = cultura;
-        List<Transaction> transactions = await LoadCsvAsync(caminhoDaPastaOrigemCsv);
 
-        await WriteTransactionsToCsvAsync(caminhoArquivoFinalCsv, transactions);
-    }
-
-
-    private static async Task WriteTransactionsToCsvAsync(string caminhoArquivoFinalCsv, List<Transaction> transactions)
+    public static async Task WriteTransactionsToCsvAsync(string caminhoArquivoFinalCsv)
     {
         try
         {
-            transactions = transactions.OrderByDescending(t => t.Data).ToList();
+            _registros = _registros.OrderByDescending(t => t.Data).ToList();
             using var fw = new FileStream(caminhoArquivoFinalCsv, FileMode.Create);
             using var sw = new StreamWriter(fw);
             using var csv = new CsvWriter(sw, config);
             csv.Context.RegisterClassMap<TransactionMapWithCategory>();
             csv.WriteHeader<Transaction>();
             csv.NextRecord();
-            await csv.WriteRecordsAsync(transactions);
+            await csv.WriteRecordsAsync(_registros);
         }
         catch (Exception ex)
         {
@@ -45,7 +38,7 @@ public static class CsvNubank
         }
     }
 
-    private static async Task ProcessCsvFileWithCsvHelperAsync(string arquivo, List<Transaction> transactions)
+    private static async Task ProcessCsvFileWithCsvHelperAsync(string arquivo)
     {
         try
         {
@@ -57,7 +50,7 @@ public static class CsvNubank
             var records = csv.GetRecordsAsync<Transaction>();
             await foreach (var record in records)
             {
-                lock (transactions) transactions.Add(record);
+                lock (_registros) _registros.Add(record);
             }
         }
         catch (Exception e)
@@ -78,7 +71,7 @@ public static class CsvNubank
         }
     }
 
-    private static async Task ProcessCsvFileManuallyAsync(string arquivo, List<Transaction> transactions)
+    private static async Task ProcessCsvFileManuallyAsync(string arquivo)
     {
         try
         {
@@ -103,17 +96,56 @@ public static class CsvNubank
             throw new Exception($"Erro ao processar o arquivo {arquivo} manualmente", e);
         }
     }
-   
+    /*
+    private static async Task ProcessCsvFileManuallyAsync2(string arquivo)
+    {
+        try
+        {
+            using var sr = new StreamReader(arquivo);
+            var linha = await sr.ReadLineAsync();
+            var header = linha.Split(',');
+            while (!sr.EndOfStream)
+            {
+                linha = await sr.ReadLineAsync();
+                var campos = linha.Split(',');
+                // var newTransaction = await MapCsvAsync(header, campos);
+                // lock (_registros) _registros.Add(newTransaction);
+            }
+        }
+        catch (Exception e)
+        {
+            throw new Exception($"Erro ao processar o arquivo {arquivo} manualmente", e);
+        }
+    }
 
-    
+    private static async Task MapCsvAsync(string[] header, string[] campos)
+    {
+        foreach (string prop in header)
+        {
+            PropertyInfo? propInfo = typeof(T).GetProperty(prop);
+            if (typeof(T).GetProperties().Contains(propInfo))
+            {
+                typeof(T).GetProperties();
+                typeof(T).GetFields();
+            }
+            if (propInfo != null)
+            {
+                var propType = propInfo.PropertyType;
+
+            }
+
+        }
+    }
+
+     */
     public static async Task<List<Transaction>> LoadCsvAsync(string caminhoArquivoFinalCsv)
     {
         try
         {
-            List<Transaction> registros = new();
-            if (File.Exists(caminhoArquivoFinalCsv)) await ProcessCsvFileWithCsvHelperAsync(caminhoArquivoFinalCsv, registros);
-            else await ProcessCsvFilesInDirectoryAsync(caminhoArquivoFinalCsv, registros);
-            return registros;
+            _registros.Clear();
+            if (File.Exists(caminhoArquivoFinalCsv)) await ProcessCsvFileWithCsvHelperAsync(caminhoArquivoFinalCsv);
+            else await ProcessCsvFilesInDirectoryAsync(caminhoArquivoFinalCsv);
+            return _registros;
         }
         catch (Exception ex) 
         {
@@ -121,12 +153,12 @@ public static class CsvNubank
         }
     }
 
-    private static async Task ProcessCsvFilesInDirectoryAsync(string caminhoArquivoFinalCsv, List<Transaction> registros)
+    private static async Task ProcessCsvFilesInDirectoryAsync(string caminhoArquivoFinalCsv)
     {
         if (Directory.Exists(caminhoArquivoFinalCsv))
         {
             string[] arquivos = Directory.GetFiles(caminhoArquivoFinalCsv, "*.csv");  // Filtrando apenas arquivos CSV
-            var tasks = arquivos.Select(arquivo => ProcessCsvFileWithCsvHelperAsync(arquivo, registros)).ToList();
+            var tasks = arquivos.Select(arquivo => ProcessCsvFileWithCsvHelperAsync(arquivo)).ToList();
             await Task.WhenAll(tasks);
         }
         else throw new FileNotFoundException($"Caminho especificado não encontrado: {caminhoArquivoFinalCsv}");

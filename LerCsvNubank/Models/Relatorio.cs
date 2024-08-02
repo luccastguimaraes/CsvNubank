@@ -1,6 +1,6 @@
 ﻿namespace LerCsvNubank.Models;
 
-public readonly record struct RelatorioMensal(decimal TotalEntradas, decimal TotalSaidas)
+public readonly record struct Relatorio(decimal TotalEntradas, decimal TotalSaidas)
 {
     public decimal Entrada => TotalEntradas;
     public decimal Saida => -TotalSaidas;
